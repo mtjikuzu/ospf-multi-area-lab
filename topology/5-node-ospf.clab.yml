@@ -1,0 +1,132 @@
+# =============================================================================
+# 7-Node Cisco IOL OSPF Lab — Memory-Optimized for 16GB Home Lab
+# =============================================================================
+# Memory Budget (ContainerLab portion): ~7.0 GB
+#   5x IOL routers: 5 x 768 MB limit (actual ~200-400MB each) = 3.8 GB limit
+#   2x IOL switches: 2 x 768 MB limit (actual ~200-400MB each) = 1.5 GB limit
+#   1x Graphite:     192 MB limit (actual ~80MB)
+#   ContainerLab:    transient CLI, 0 MB at steady state
+#   With KSM:        expect ~30-50% dedup across identical IOL processes
+# =============================================================================
+
+name: netlab-ospf
+
+mgmt:
+  network: clab-mgmt
+  ipv4-subnet: 172.21.20.0/24
+  ipv6-subnet: 3fff:172:21:20::/64
+
+topology:
+  defaults:
+    kind: cisco_iol
+    image: vrnetlab/cisco_iol:17.12.01
+    memory: 768m
+    cpu: 0.5
+    labels:
+      com.netlab.stack: "netlab"
+      com.netlab.lab: "ospf"
+
+  nodes:
+    # --- Core Routers (Area 0 backbone) ---
+    R1:
+      ports:
+        - 0.0.0.0:22401:22
+      labels:
+        com.netlab.role: "core"
+    R2:
+      ports:
+        - 0.0.0.0:22402:22
+      labels:
+        com.netlab.role: "core"
+    R3:
+      ports:
+        - 0.0.0.0:22403:22
+      labels:
+        com.netlab.role: "core"
+    # --- Distribution Routers (Area 1 and Area 2) ---
+    R4:
+      ports:
+        - 0.0.0.0:22404:22
+      labels:
+        com.netlab.role: "distribution"
+    R5:
+      ports:
+        - 0.0.0.0:22405:22
+      labels:
+        com.netlab.role: "distribution"
+    # --- Access Layer Switches ---
+    SW1:
+      image: vrnetlab/cisco_iol:L2-17.12.01
+      mgmt-ipv4: 172.21.20.10
+      startup-config: configs/sw1.cfg
+      ports:
+        - 0.0.0.0:22406:22
+      labels:
+        com.netlab.role: "access"
+        graph-icon: "switch"
+    SW2:
+      image: vrnetlab/cisco_iol:L2-17.12.01
+      mgmt-ipv4: 172.21.20.11
+      startup-config: configs/sw2.cfg
+      ports:
+        - 0.0.0.0:22407:22
+      labels:
+        com.netlab.role: "access"
+        graph-icon: "switch"
+    # --- Graphite Topology Visualizer ---
+    graphite:
+      kind: linux
+      image: netreplica/graphite
+      memory: 192m
+      cpu: 0.25
+      env:
+        HOST_CONNECTION: ${SSH_CONNECTION}
+      binds:
+        - __clabDir__/topology-data.json:/htdocs/default/default.json:ro
+        - __clabDir__/ansible-inventory.yml:/htdocs/lab/default/ansible-inventory.yml:ro
+        - ../config/graphite/webssh2-config.json:/usr/local/webssh2/config.json:ro
+        - ../config/graphite/clab.js:/htdocs/graphite/js/clab.js:ro
+        - ../config/graphite/socat-ssh-forwarders.sh:/usr/local/bin/socat-ssh-forwarders.sh:ro
+      ports:
+        - 0.0.0.0:8401:80
+      exec:
+        - sh -c 'graphite_motd.sh 8401'
+        - sh -c 'apk add --no-cache socat >/dev/null 2>&1 && /usr/local/bin/socat-ssh-forwarders.sh'
+      labels:
+        graph-hide: yes
+        com.netlab.stack: "netlab"
+        com.netlab.role: "visualizer"
+
+  # ===========================================================================
+  # Topology:
+  #
+  #         Area 0 (Backbone)
+  #     R1 ──── R2 ──── R3
+  #     │       │       │
+  #     └───────┼───────┘
+  #             │
+  #        ┌────┴────┐
+  #        R4        R5
+  #      Area 1    Area 2
+  #        │         │
+  #       SW1       SW2
+  #
+  # ===========================================================================
+  links:
+    # --- Area 0 backbone triangle ---
+    - endpoints: ["R1:eth1", "R2:eth1"]
+    - endpoints: ["R2:eth2", "R3:eth1"]
+    - endpoints: ["R1:eth2", "R3:eth2"]
+
+    # --- Area 0 to Area 1 (R2 → R4) ---
+    - endpoints: ["R2:eth3", "R4:eth1"]
+
+    # --- Area 0 to Area 2 (R3 → R5) ---
+    - endpoints: ["R3:eth3", "R5:eth1"]
+
+    # --- Redundant link Area 1 ↔ Area 2 (R4 → R5) ---
+    - endpoints: ["R4:eth2", "R5:eth2"]
+
+    # --- Access layer (R4 → SW1, R5 → SW2) ---
+    - endpoints: ["R4:eth3", "SW1:eth1"]
+    - endpoints: ["R5:eth3", "SW2:eth1"]
