@@ -81,16 +81,24 @@ ssh admin@localhost -p 22405   # R5
 
 Default credentials: `admin` / `admin`
 
-### Apply Configs
+### Apply Configs (Manual, Hands-On)
 
-You can paste configurations manually or use a script:
+Apply configurations manually per router so learners practice the actual CLI workflow:
 
 ```bash
-for i in 1 2 3 4 5; do
-  sshpass -p admin ssh -o StrictHostKeyChecking=no -p 2240${i} admin@localhost \
-    "configure terminal" < configs/R${i}.cfg
-done
+ssh admin@localhost -p 22401   # R1
+ssh admin@localhost -p 22402   # R2
+ssh admin@localhost -p 22403   # R3
+ssh admin@localhost -p 22404   # R4
+ssh admin@localhost -p 22405   # R5
 ```
+
+Then copy/paste each file from `configs/` into the matching router session:
+- `configs/R1.cfg` -> R1
+- `configs/R2.cfg` -> R2
+- `configs/R3.cfg` -> R3
+- `configs/R4.cfg` -> R4
+- `configs/R5.cfg` -> R5
 
 ### Verify
 

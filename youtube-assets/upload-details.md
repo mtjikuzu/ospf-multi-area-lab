@@ -20,6 +20,8 @@ Complete hands-on multi-area OSPF configuration lab using 5 Cisco IOL routers in
 
 Lab configs & topology: https://github.com/mtjikuzu/ospf-multi-area-lab
 
+Recommended upload file: `ospf-multi-area-final-upload.mp4` (from `ospf-tutorial-video/out/`)
+
 What you'll see:
   00:00  Intro — What is OSPF?
   00:40  Topology Overview (5 routers, 3 areas, 2 ABRs)
